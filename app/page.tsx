@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ipa } from "./ipa";
 import { units, type VocabItem } from "./data";
 
@@ -28,6 +28,101 @@ function shuffle<T>(items: T[]) {
   return [...items].sort(() => Math.random() - 0.5);
 }
 
+function SpellingModule({
+  word,
+  accent,
+  completed,
+  onCorrect,
+}: {
+  word: VocabItem;
+  accent: Accent;
+  completed: boolean;
+  onCorrect: () => void;
+}) {
+  const [answer, setAnswer] = useState("");
+  const [status, setStatus] = useState<"idle" | "correct" | "incorrect">("idle");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const target = word.term.toLowerCase().replace(/[^a-z]/g, "");
+
+  useEffect(() => {
+    setAnswer("");
+    setStatus("idle");
+  }, [word.term]);
+
+  function updateAnswer(value: string) {
+    setAnswer(value.toLowerCase().replace(/[^a-z]/g, "").slice(0, target.length));
+    setStatus("idle");
+  }
+
+  function checkAnswer() {
+    if (!answer) {
+      inputRef.current?.focus();
+      return;
+    }
+    if (answer === target) {
+      setStatus("correct");
+      onCorrect();
+    } else {
+      setStatus("incorrect");
+    }
+  }
+
+  function revealNextLetter() {
+    let next = 0;
+    while (next < answer.length && answer[next] === target[next]) next += 1;
+    const prefix = target.slice(0, next + 1);
+    setAnswer(prefix);
+    setStatus("idle");
+    inputRef.current?.focus();
+  }
+
+  let letterIndex = 0;
+
+  return (
+    <div className="spelling-module">
+      <div className="spelling-heading">
+        <div><h4>听音默写</h4><p>听发音，根据“{word.meaning}”填写完整单词。</p></div>
+        {completed && <span className="spelling-complete">✓ 已默写正确</span>}
+      </div>
+      <button className="spelling-sound" onClick={() => speak(word.term, accent, 0.78)}>🔊 播放单词</button>
+      <div className={`letter-boxes ${status}`} onClick={() => inputRef.current?.focus()} role="presentation">
+        {word.term.toLowerCase().split("").map((character, index) => {
+          if (!/[a-z]/.test(character)) {
+            return <span className="spelling-separator" key={`${character}-${index}`}>{character === " " ? "·" : character}</span>;
+          }
+          const currentIndex = letterIndex;
+          letterIndex += 1;
+          const value = answer[currentIndex] ?? "";
+          const isWrong = status === "incorrect" && value && value !== target[currentIndex];
+          return <span className={`letter-box ${isWrong ? "wrong-letter" : ""}`} key={`${character}-${index}`}>{value || "_"}</span>;
+        })}
+      </div>
+      <label className="spelling-input-label">
+        <span>连续输入字母</span>
+        <input
+          ref={inputRef}
+          className="spelling-input"
+          value={answer}
+          onChange={(event) => updateAnswer(event.target.value)}
+          onKeyDown={(event) => { if (event.key === "Enter") checkAnswer(); }}
+          placeholder={`共 ${target.length} 个字母`}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          aria-label={`默写 ${word.meaning} 对应的英文单词`}
+        />
+      </label>
+      <div className="spelling-actions">
+        <button onClick={revealNextLetter}>提示一个字母</button>
+        <button onClick={() => { setAnswer(""); setStatus("idle"); inputRef.current?.focus(); }}>重新填写</button>
+        <button className="check-spelling" onClick={checkAnswer}>检查答案</button>
+      </div>
+      {status === "correct" && <div className="spelling-feedback correct">拼写正确！读一遍，再记一遍。</div>}
+      {status === "incorrect" && <div className="spelling-feedback incorrect">还有字母不正确，红色格子需要修改。</div>}
+    </div>
+  );
+}
+
 export default function Home() {
   const [unitId, setUnitId] = useState(1);
   const [contentMode, setContentMode] = useState<ContentMode>("words");
@@ -36,6 +131,7 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [accent, setAccent] = useState<Accent>("en-GB");
   const [mastered, setMastered] = useState<string[]>([]);
+  const [spelled, setSpelled] = useState<string[]>([]);
   const [quiz, setQuiz] = useState<{ word: VocabItem; choices: string[] } | null>(null);
   const [quizAnswer, setQuizAnswer] = useState<string | null>(null);
   const [quizScore, setQuizScore] = useState({ correct: 0, total: 0 });
@@ -56,6 +152,8 @@ export default function Home() {
   useEffect(() => {
     const stored = window.localStorage.getItem("u1-u8-mastered");
     if (stored) setMastered(JSON.parse(stored));
+    const storedSpelling = window.localStorage.getItem("u1-u8-spelling");
+    if (storedSpelling) setSpelled(JSON.parse(storedSpelling));
   }, []);
 
   function changeUnit(id: number) {
@@ -73,6 +171,14 @@ export default function Home() {
       : [...mastered, key];
     setMastered(next);
     window.localStorage.setItem("u1-u8-mastered", JSON.stringify(next));
+  }
+
+  function markSpellingCorrect() {
+    const key = `${unit.id}:${selectedWord.term}`;
+    if (spelled.includes(key)) return;
+    const next = [...spelled, key];
+    setSpelled(next);
+    window.localStorage.setItem("u1-u8-spelling", JSON.stringify(next));
   }
 
   function nextWord(direction = 1) {
@@ -262,6 +368,15 @@ export default function Home() {
                     <section className="wide-card">
                       <span className="card-icon">变</span><div><h4>词形变化</h4>{selectedWord.family?.length ? <ul>{selectedWord.family.map((item) => <li key={item}>{item}</li>)}</ul> : <p>PDF 本单元未列出该词的词形变化。</p>}</div>
                     </section>
+                    <section className="wide-card spelling-card">
+                      <span className="card-icon">默</span>
+                      <SpellingModule
+                        word={selectedWord}
+                        accent={accent}
+                        completed={spelled.includes(`${unit.id}:${selectedWord.term}`)}
+                        onCorrect={markSpellingCorrect}
+                      />
+                    </section>
                     <section className="wide-card sentence-preview">
                       <span className="card-icon">句</span><div><h4>本单元重点句型</h4><p>{unit.sentences[0].en}</p><small>{unit.sentences[0].zh}</small><button className="text-button" onClick={() => speak(unit.sentences[0].en, accent)}>🔊 朗读整句</button></div>
                     </section>
@@ -294,4 +409,3 @@ export default function Home() {
     </main>
   );
 }
-
