@@ -8,6 +8,8 @@ type ContentMode = "words" | "phrases" | "sentences";
 type PageMode = "learn" | "practice";
 type Accent = "en-GB" | "en-US";
 
+export const dynamic = "force-static";
+
 const totalWords = units.reduce((sum, unit) => sum + unit.vocab.length, 0);
 
 function speak(text: string, accent: Accent, rate = 0.88) {
