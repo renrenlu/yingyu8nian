@@ -13,6 +13,16 @@ from typing import Any
 import edge_tts
 
 
+CONTEXTUAL_PRONUNCIATIONS = {
+    # The textbook uses the verb /rɪˈkɔːd/. An isolated "record" can be
+    # synthesized as the noun, so generate it in verb context and keep only
+    # the target word using Edge's word-boundary timestamps.
+    "record": ("Record it.", "record"),
+}
+EDGE_MP3_FRAME_BYTES = 144
+EDGE_MP3_FRAME_SECONDS = 0.024
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", required=True, type=Path)
@@ -36,6 +46,73 @@ def synthesis_text(text: str, locale: str) -> str:
     return normalized
 
 
+def trim_edge_mp3(audio: bytes, start_seconds: float, end_seconds: float) -> bytes:
+    if len(audio) % EDGE_MP3_FRAME_BYTES != 0:
+        raise RuntimeError("unexpected Edge MP3 frame alignment")
+    if not all(
+        audio[offset] == 0xFF and audio[offset + 1] & 0xE0 == 0xE0
+        for offset in range(0, len(audio), EDGE_MP3_FRAME_BYTES)
+    ):
+        raise RuntimeError("unexpected Edge MP3 frame header")
+
+    frame_count = len(audio) // EDGE_MP3_FRAME_BYTES
+    first_frame = max(0, int(start_seconds / EDGE_MP3_FRAME_SECONDS))
+    last_frame = min(
+        frame_count,
+        int(end_seconds / EDGE_MP3_FRAME_SECONDS) + 1,
+    )
+    last_frame = max(first_frame + 1, last_frame)
+    return audio[
+        first_frame * EDGE_MP3_FRAME_BYTES : last_frame * EDGE_MP3_FRAME_BYTES
+    ]
+
+
+async def contextual_audio(text: str, voice: str) -> bytes | None:
+    override = CONTEXTUAL_PRONUNCIATIONS.get(text)
+    if override is None:
+        return None
+
+    prompt, target_word = override
+    audio = bytearray()
+    boundaries: list[dict[str, Any]] = []
+    communicate = edge_tts.Communicate(
+        prompt,
+        voice,
+        rate="+0%",
+        volume="+0%",
+        pitch="+0Hz",
+        boundary="WordBoundary",
+    )
+    async for chunk in communicate.stream():
+        if chunk["type"] == "audio":
+            audio.extend(chunk["data"])
+        elif chunk["type"] == "WordBoundary":
+            boundaries.append(chunk)
+
+    target_index = next(
+        (
+            index
+            for index, item in enumerate(boundaries)
+            if item["text"].lower() == target_word
+        ),
+        None,
+    )
+    if target_index is None:
+        raise RuntimeError(f"word boundary not found for {text!r}")
+
+    boundary = boundaries[target_index]
+    start = boundary["offset"] / 10_000_000 - 0.12
+    end = (boundary["offset"] + boundary["duration"]) / 10_000_000 + 0.18
+    if target_index > 0:
+        previous = boundaries[target_index - 1]
+        previous_end = (previous["offset"] + previous["duration"]) / 10_000_000
+        start = max(start, previous_end + 0.01)
+    if target_index + 1 < len(boundaries):
+        next_start = boundaries[target_index + 1]["offset"] / 10_000_000
+        end = min(end, next_start - 0.01)
+    return trim_edge_mp3(bytes(audio), max(0, start), end)
+
+
 async def synthesize(
     text: str,
     locale: str,
@@ -53,14 +130,22 @@ async def synthesize(
         for attempt in range(1, 5):
             try:
                 temporary.unlink(missing_ok=True)
-                communicate = edge_tts.Communicate(
-                    synthesis_text(text, locale),
-                    voice,
-                    rate="+0%",
-                    volume="+0%",
-                    pitch="+0Hz",
+                contextual = (
+                    await contextual_audio(text, voice)
+                    if locale != "zh-CN"
+                    else None
                 )
-                await communicate.save(str(temporary))
+                if contextual is not None:
+                    temporary.write_bytes(contextual)
+                else:
+                    communicate = edge_tts.Communicate(
+                        synthesis_text(text, locale),
+                        voice,
+                        rate="+0%",
+                        volume="+0%",
+                        pitch="+0Hz",
+                    )
+                    await communicate.save(str(temporary))
                 if not valid_mp3(temporary):
                     raise RuntimeError("generated file is not a valid MP3")
                 os.replace(temporary, target)
