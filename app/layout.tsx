@@ -3,9 +3,9 @@ import "./globals.css";
 
 const isGitHubPages = process.env.GITHUB_PAGES === "true";
 const siteUrl = isGitHubPages
-  ? "https://renrenlu.github.io/yingyu8nian/"
+  ? "https://renrenlu.github.io/8shang_yingyu_danchi/"
   : "https://grade8-english-u1-u8.renren49.chatgpt.site/";
-const assetBase = isGitHubPages ? "/yingyu8nian" : "";
+const assetBase = isGitHubPages ? "/8shang_yingyu_danchi" : "";
 const title = "八上英语 U1–U8 互动学习系统";
 const description = "沪教牛津版八年级上册 U1–U8 重点词汇、词组和句型学习，支持 Sonia 英音、Jenny 美音、Xiaoxiao 中文和慢速跟读。";
 

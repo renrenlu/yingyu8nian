@@ -53,7 +53,7 @@ export default defineConfig(async () => {
       ];
 
   return {
-    base: process.env.GITHUB_PAGES === "true" ? "/yingyu8nian/" : undefined,
+    base: process.env.GITHUB_PAGES === "true" ? "/8shang_yingyu_danchi/" : undefined,
     server: isCodexSeatbeltSandbox
       ? { watch: { useFsEvents: false, usePolling: true } }
       : undefined,
