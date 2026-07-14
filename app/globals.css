@@ -140,11 +140,13 @@ button { color: inherit; }
 .pronunciation-row > span { font-family: Georgia, serif; font-size: 18px; margin-right: 5px; }
 .pronunciation-row button { border: 1px solid var(--line); background: white; border-radius: 8px; padding: 7px 10px; cursor: pointer; color: var(--green); font-size: 12px; font-weight: 700; }
 .meaning-line { display: flex; align-items: center; gap: 11px; margin-top: 18px; }.meaning-line em { padding: 5px 8px; border-radius: 7px; background: #ffe9c3; color: var(--orange-dark); font-style: normal; font-size: 12px; font-weight: 800; }.meaning-line strong { font-size: 18px; }
+.meaning-sound { border: 1px solid #f2c886; border-radius: 8px; padding: 6px 9px; background: #fff7e9; color: var(--orange-dark); font-size: 11px; font-weight: 800; cursor: pointer; }
 .master-button { align-self: start; border: 1px solid var(--line); background: white; border-radius: 10px; padding: 9px 12px; cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 700; }.master-button.done { color: #217052; background: #e3f5ec; border-color: #b9e2cf; }
 .detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 13px; padding: 22px; background: #f8f4ea; }
 .detail-grid section { min-height: 130px; display: flex; gap: 13px; align-items: flex-start; padding: 20px; background: white; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 5px 0 #dfd9cd; }
 .card-icon { flex: 0 0 auto; width: 30px; height: 30px; display: grid; place-items: center; background: #fff0d4; color: var(--orange-dark); border-radius: 8px; font-size: 12px; font-weight: 900; }
 .detail-grid h4 { margin: 1px 0 10px; color: var(--orange-dark); font-size: 13px; }.detail-grid p { margin: 0; font-size: 14px; line-height: 1.65; }.detail-grid small { display: block; color: #9b9b94; margin-top: 7px; }.detail-grid ul { margin: 0; padding-left: 18px; color: #45504c; font-size: 14px; line-height: 1.8; }.wide-card { grid-column: span 2; }.sentence-preview { background: #fffaf1 !important; }.text-button { border: 0; background: transparent; padding: 0; margin-top: 12px; color: var(--green); font-size: 12px; font-weight: 800; cursor: pointer; }
+.text-button-spaced { margin-left: 18px; }
 .spelling-card { background: linear-gradient(145deg, #fffdf8, #fff6e5) !important; }
 .spelling-module { flex: 1; min-width: 0; }
 .spelling-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }

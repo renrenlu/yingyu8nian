@@ -1,30 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { playSpeech, voiceLabels, type Accent } from "./audio";
 import { ipa } from "./ipa";
 import { units, type VocabItem } from "./data";
 
 type ContentMode = "words" | "phrases" | "sentences";
 type PageMode = "learn" | "practice";
-type Accent = "en-GB" | "en-US";
 
 export const dynamic = "force-static";
 
 const totalWords = units.reduce((sum, unit) => sum + unit.vocab.length, 0);
-
-function speak(text: string, accent: Accent, rate = 0.88) {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text.replaceAll("…", " "));
-  utterance.lang = accent;
-  utterance.rate = rate;
-  utterance.pitch = 1;
-  const voices = window.speechSynthesis.getVoices();
-  const exactVoice = voices.find((voice) => voice.lang === accent);
-  const languageVoice = voices.find((voice) => voice.lang.startsWith(accent.slice(0, 2)));
-  utterance.voice = exactVoice ?? languageVoice ?? null;
-  window.speechSynthesis.speak(utterance);
-}
 
 function shuffle<T>(items: T[]) {
   return [...items].sort(() => Math.random() - 0.5);
@@ -86,7 +72,7 @@ function SpellingModule({
         <div><h4>听音默写</h4><p>听发音，根据“{word.meaning}”填写完整单词。</p></div>
         {completed && <span className="spelling-complete">✓ 已默写正确</span>}
       </div>
-      <button className="spelling-sound" onClick={() => speak(word.term, accent, 0.78)}>🔊 播放单词</button>
+      <button className="spelling-sound" onClick={() => playSpeech(word.term, accent, 0.88)}>🔊 播放单词</button>
       <div className={`letter-boxes ${status}`} onClick={() => inputRef.current?.focus()} role="presentation">
         {word.term.toLowerCase().split("").map((character, index) => {
           if (!/[a-z]/.test(character)) {
@@ -223,8 +209,8 @@ export default function Home() {
           <button className={pageMode === "practice" ? "active" : ""} onClick={() => setPageMode("practice")}>练习</button>
         </nav>
         <div className="accent-switch" aria-label="发音口音">
-          <button className={accent === "en-GB" ? "active" : ""} onClick={() => setAccent("en-GB")}>英音</button>
-          <button className={accent === "en-US" ? "active" : ""} onClick={() => setAccent("en-US")}>美音</button>
+          <button title={voiceLabels["en-GB"].label} className={accent === "en-GB" ? "active" : ""} onClick={() => setAccent("en-GB")}>英音</button>
+          <button title={voiceLabels["en-US"].label} className={accent === "en-US" ? "active" : ""} onClick={() => setAccent("en-US")}>美音</button>
         </div>
       </header>
 
@@ -297,7 +283,7 @@ export default function Home() {
                 <span className="quiz-label">选出正确的中文释义</span>
                 <div className="quiz-word-row">
                   <h3>{quiz.word.term}</h3>
-                  <button className="round-sound" onClick={() => speak(quiz.word.term, accent)} aria-label={`朗读 ${quiz.word.term}`}>🔊</button>
+                  <button className="round-sound" onClick={() => playSpeech(quiz.word.term, accent)} aria-label={`朗读 ${quiz.word.term}`}>🔊</button>
                 </div>
                 <p className="phonetic">/{ipa[quiz.word.term] ?? "点击喇叭听发音"}/</p>
                 <div className="quiz-options">
@@ -320,7 +306,8 @@ export default function Home() {
                 <span className="sentence-index">{String(index + 1).padStart(2, "0")}</span>
                 <div><p>{sentence.en}</p>{showChinese[index] && <blockquote>{sentence.zh}</blockquote>}</div>
                 <div className="sentence-actions">
-                  <button onClick={() => speak(sentence.en, accent)}>🔊 朗读</button>
+                  <button onClick={() => playSpeech(sentence.en, accent)}>🔊 英文</button>
+                  <button onClick={() => playSpeech(sentence.zh, "zh-CN")}>🔊 中文</button>
                   <button onClick={() => setShowChinese((state) => ({ ...state, [index]: !state[index] }))}>{showChinese[index] ? "隐藏释义" : "查看释义"}</button>
                 </div>
               </article>
@@ -353,19 +340,19 @@ export default function Home() {
                       <h3>{selectedWord.term}</h3>
                       <div className="pronunciation-row">
                         <span>/{ipa[selectedWord.term] ?? "—"}/</span>
-                        <button onClick={() => speak(selectedWord.term, accent, 0.88)}>🔊 标准</button>
-                        <button onClick={() => speak(selectedWord.term, accent, 0.62)}>慢速</button>
+                        <button onClick={() => playSpeech(selectedWord.term, accent)}>🔊 标准</button>
+                        <button onClick={() => playSpeech(selectedWord.term, accent, 0.7)}>慢速</button>
                       </div>
-                      <div className="meaning-line"><em>{selectedWord.pos}</em><strong>{selectedWord.meaning}</strong></div>
+                      <div className="meaning-line"><em>{selectedWord.pos}</em><strong>{selectedWord.meaning}</strong><button className="meaning-sound" onClick={() => playSpeech(selectedWord.meaning, "zh-CN")}>🔊 中文</button></div>
                     </div>
                     <button className={`master-button ${isMastered ? "done" : ""}`} onClick={toggleMastered}>{isMastered ? "✓ 已掌握" : "○ 标记掌握"}</button>
                   </div>
                   <div className="detail-grid">
                     <section>
-                      <span className="card-icon">译</span><div><h4>教材释义</h4><p>{selectedWord.meaning}</p><small>与 PDF 原文保持一致</small></div>
+                      <span className="card-icon">译</span><div><h4>教材释义</h4><p>{selectedWord.meaning}</p><small>与 PDF 原文保持一致</small><button className="text-button" onClick={() => playSpeech(selectedWord.meaning, "zh-CN")}>🔊 听中文释义</button></div>
                     </section>
                     <section>
-                      <span className="card-icon">音</span><div><h4>跟读练习</h4><p>先听标准速度，再用慢速分辨音节和重音。</p><button className="text-button" onClick={() => speak(selectedWord.term, accent, 0.62)}>播放慢速发音 →</button></div>
+                      <span className="card-icon">音</span><div><h4>跟读练习</h4><p>先听标准速度，再用慢速分辨音节和重音。</p><button className="text-button" onClick={() => playSpeech(selectedWord.term, accent, 0.7)}>播放慢速发音 →</button></div>
                     </section>
                     <section className="wide-card">
                       <span className="card-icon">变</span><div><h4>词形变化</h4>{selectedWord.family?.length ? <ul>{selectedWord.family.map((item) => <li key={item}>{item}</li>)}</ul> : <p>PDF 本单元未列出该词的词形变化。</p>}</div>
@@ -380,7 +367,7 @@ export default function Home() {
                       />
                     </section>
                     <section className="wide-card sentence-preview">
-                      <span className="card-icon">句</span><div><h4>本单元重点句型</h4><p>{unit.sentences[0].en}</p><small>{unit.sentences[0].zh}</small><button className="text-button" onClick={() => speak(unit.sentences[0].en, accent)}>🔊 朗读整句</button></div>
+                      <span className="card-icon">句</span><div><h4>本单元重点句型</h4><p>{unit.sentences[0].en}</p><small>{unit.sentences[0].zh}</small><button className="text-button" onClick={() => playSpeech(unit.sentences[0].en, accent)}>🔊 英文朗读</button><button className="text-button text-button-spaced" onClick={() => playSpeech(unit.sentences[0].zh, "zh-CN")}>🔊 中文朗读</button></div>
                     </section>
                   </div>
                 </>
@@ -391,13 +378,13 @@ export default function Home() {
                     <div className="word-core">
                       <span className="detail-label">KEY PHRASE</span>
                       <h3>{selectedPhrase.term}</h3>
-                      <div className="pronunciation-row"><button onClick={() => speak(selectedPhrase.term, accent, 0.88)}>🔊 标准</button><button onClick={() => speak(selectedPhrase.term, accent, 0.62)}>慢速</button></div>
-                      <div className="meaning-line"><em>phrase</em><strong>{selectedPhrase.meaning}</strong></div>
+                      <div className="pronunciation-row"><button onClick={() => playSpeech(selectedPhrase.term, accent)}>🔊 标准</button><button onClick={() => playSpeech(selectedPhrase.term, accent, 0.7)}>慢速</button></div>
+                      <div className="meaning-line"><em>phrase</em><strong>{selectedPhrase.meaning}</strong><button className="meaning-sound" onClick={() => playSpeech(selectedPhrase.meaning, "zh-CN")}>🔊 中文</button></div>
                     </div>
                   </div>
                   <div className="detail-grid phrase-grid">
-                    <section><span className="card-icon">义</span><div><h4>词组释义</h4><p>{selectedPhrase.meaning}</p><small>与 PDF 原文保持一致</small></div></section>
-                    <section><span className="card-icon">法</span><div><h4>学习建议</h4><p>把词组作为一个整体记忆，并跟读三遍。</p><button className="text-button" onClick={() => speak(selectedPhrase.term, accent, 0.72)}>开始跟读 →</button></div></section>
+                    <section><span className="card-icon">义</span><div><h4>词组释义</h4><p>{selectedPhrase.meaning}</p><small>与 PDF 原文保持一致</small><button className="text-button" onClick={() => playSpeech(selectedPhrase.meaning, "zh-CN")}>🔊 听中文释义</button></div></section>
+                    <section><span className="card-icon">法</span><div><h4>学习建议</h4><p>把词组作为一个整体记忆，并跟读三遍。</p><button className="text-button" onClick={() => playSpeech(selectedPhrase.term, accent, 0.78)}>开始跟读 →</button></div></section>
                   </div>
                 </>
               )}
@@ -407,7 +394,7 @@ export default function Home() {
         )}
       </section>
 
-      <footer><div className="brand"><span className="brand-mark">A+</span><span>八上英语学习舱</span></div><p>内容依据《新八上 U1–U8 重点词组、重点句型》整理 · 发音由设备英语语音引擎提供</p></footer>
+      <footer><div className="brand"><span className="brand-mark">A+</span><span>八上英语学习舱</span></div><p>内容依据《新八上 U1–U8 重点词组、重点句型》整理 · 英音 Sonia / 美音 Jenny / 中文 Xiaoxiao Neural</p></footer>
     </main>
   );
 }

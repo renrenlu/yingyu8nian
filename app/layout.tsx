@@ -7,7 +7,7 @@ const siteUrl = isGitHubPages
   : "https://grade8-english-u1-u8.renren49.chatgpt.site/";
 const assetBase = isGitHubPages ? "/yingyu8nian" : "";
 const title = "八上英语 U1–U8 互动学习系统";
-const description = "沪教牛津版八年级上册 U1–U8 重点词汇、词组和句型学习，支持英音、美音、慢速跟读与单词自测。";
+const description = "沪教牛津版八年级上册 U1–U8 重点词汇、词组和句型学习，支持 Sonia 英音、Jenny 美音、Xiaoxiao 中文和慢速跟读。";
 
 export const dynamic = "force-static";
 
@@ -20,9 +20,9 @@ export const metadata: Metadata = {
     description,
     type: "website",
     url: siteUrl,
-    images: [{ url: `${assetBase}/og.jpg`, width: 1200, height: 630, alt: title }],
+    images: [{ url: `${assetBase}/og.png`, width: 1200, height: 630, alt: title }],
   },
-  twitter: { card: "summary_large_image", title, description, images: [`${assetBase}/og.jpg`] },
+  twitter: { card: "summary_large_image", title, description, images: [`${assetBase}/og.png`] },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
